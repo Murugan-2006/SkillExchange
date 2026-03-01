@@ -1,17 +1,21 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { courseService, videoService } from '../services/api';
+import { courseService, videoService, notesService } from '../services/api';
 import VideoPlayer from '../components/VideoPlayer';
 import ProjectSubmission from '../components/ProjectSubmission';
+import FeedbackForm from '../components/FeedbackForm';
 
 export default function CourseDetailPage() {
   const { courseId } = useParams();
   const navigate = useNavigate();
   const [course, setCourse] = useState(null);
   const [videos, setVideos] = useState([]);
+  const [notes, setNotes] = useState([]);
   const [selectedVideo, setSelectedVideo] = useState(null);
   const [loading, setLoading] = useState(true);
   const [showProjectForm, setShowProjectForm] = useState(false);
+  const [feedbackSubmitted, setFeedbackSubmitted] = useState(false);
+  const [debugError, setDebugError] = useState(null);
 
   useEffect(() => {
     fetchCourseAndVideos();
@@ -20,19 +24,37 @@ export default function CourseDetailPage() {
   const fetchCourseAndVideos = async () => {
     try {
       setLoading(true);
+      setDebugError(null);
+
+      console.log('Fetching course by id:', courseId);
       const courseRes = await courseService.getCourseById(courseId);
+      console.log('Course response:', courseRes.data);
       setCourse(courseRes.data.course);
 
+      console.log('Fetching videos for course:', courseId);
       const videosRes = await videoService.getVideosByCourse(courseId);
+      console.log('Videos response:', videosRes.data);
       setVideos(videosRes.data.videos);
+      
+      // Fetch notes for the course
+      try {
+        const notesRes = await notesService.getNotesByCourse(courseId);
+        console.log('Notes response:', notesRes.data);
+        setNotes(notesRes.data.notes || []);
+      } catch (notesError) {
+        console.error('Error fetching notes:', notesError);
+        setNotes([]);
+      }
       
       if (videosRes.data.videos.length > 0) {
         setSelectedVideo(videosRes.data.videos[0]);
       }
     } catch (error) {
       console.error('Error fetching course:', error);
-      alert('Failed to load course');
-      navigate('/student/dashboard');
+      const message = error.response?.data?.message || error.message || 'Failed to load course';
+      setDebugError({ message, details: error.response?.data || error });
+      // Do not redirect automatically - show debug info on the page
+      // navigate('/student/dashboard');
     } finally {
       setLoading(false);
     }
@@ -53,6 +75,13 @@ export default function CourseDetailPage() {
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <p className="text-gray-600">Course not found</p>
+          {debugError && (
+            <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded text-red-600 text-sm text-left max-w-xl mx-auto">
+              <strong>Debug:</strong>
+              <div className="mt-2">{debugError.message}</div>
+              <pre className="mt-2 text-xs text-gray-700 bg-white p-2 rounded overflow-auto">{JSON.stringify(debugError.details, null, 2)}</pre>
+            </div>
+          )}
         </div>
       </div>
     );
@@ -86,7 +115,20 @@ export default function CourseDetailPage() {
                 
                 {/* Project Submission Form */}
                 {showProjectForm && (
-                  <ProjectSubmission courseId={courseId} isVisible={true} />
+                  <div>
+                    {/* Feedback Form - Required before project submission */}
+                    <FeedbackForm 
+                      courseId={courseId} 
+                      onFeedbackSubmitted={(submitted) => setFeedbackSubmitted(submitted)} 
+                    />
+                    
+                    {/* Project Submission - Enabled only after feedback */}
+                    <ProjectSubmission 
+                      courseId={courseId} 
+                      isVisible={true} 
+                      feedbackSubmitted={feedbackSubmitted}
+                    />
+                  </div>
                 )}
               </div>
             ) : (
@@ -133,6 +175,35 @@ export default function CourseDetailPage() {
                   )}
                 </div>
               </div>
+
+              {/* Course Notes/Documents */}
+              {notes.length > 0 && (
+                <div className="mt-6 pt-6 border-t border-gray-200">
+                  <h3 className="text-lg font-bold text-gray-800 mb-3">📄 Course Notes</h3>
+                  <div className="space-y-2">
+                    {notes.map((note) => (
+                      <a
+                        key={note._id}
+                        href={note.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="block p-3 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition"
+                      >
+                        <div className="flex items-center gap-2">
+                          <span className="text-indigo-600 text-xl">📑</span>
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium text-indigo-900 text-sm truncate">{note.title}</p>
+                            {note.description && (
+                              <p className="text-xs text-gray-500 truncate">{note.description}</p>
+                            )}
+                          </div>
+                          <span className="text-indigo-600 text-sm">↗</span>
+                        </div>
+                      </a>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>

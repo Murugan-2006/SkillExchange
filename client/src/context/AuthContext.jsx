@@ -1,4 +1,5 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
+import { authService } from '../services/api';
 
 const AuthContext = createContext();
 
@@ -21,6 +22,29 @@ export const AuthProvider = ({ children }) => {
     } else {
       localStorage.removeItem('token');
     }
+  }, [token]);
+
+  // If there is a token but no user, fetch profile on init
+  useEffect(() => {
+    let mounted = true;
+    const loadProfile = async () => {
+      if (token && !user) {
+        setLoading(true);
+        try {
+          const res = await authService.getProfile();
+          if (mounted) setUser(res.data.user);
+        } catch (err) {
+          // Token invalid or expired - clear it
+          console.warn('Failed to fetch profile, clearing token:', err?.response?.data || err.message);
+          if (mounted) setToken(null);
+        } finally {
+          if (mounted) setLoading(false);
+        }
+      }
+    };
+
+    loadProfile();
+    return () => (mounted = false);
   }, [token]);
 
   const login = (userData, authToken) => {

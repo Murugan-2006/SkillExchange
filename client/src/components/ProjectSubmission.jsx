@@ -1,9 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
-export default function ProjectSubmission({ courseId, isVisible = true }) {
+export default function ProjectSubmission({ courseId, isVisible = true, feedbackSubmitted = false }) {
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -13,6 +13,27 @@ export default function ProjectSubmission({ courseId, isVisible = true }) {
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [urlType, setUrlType] = useState('github'); // 'github', 'demo', or 'both'
+  const [userGithub, setUserGithub] = useState('');
+  
+  const isFormEnabled = feedbackSubmitted;
+
+  // Fetch user's GitHub username
+  useEffect(() => {
+    const fetchUserProfile = async () => {
+      const token = localStorage.getItem('token');
+      if (token) {
+        try {
+          const res = await axios.get(`${API_URL}/auth/profile`, {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          setUserGithub(res.data.user?.githubUsername || '');
+        } catch (err) {
+          console.error('Failed to fetch user profile:', err);
+        }
+      }
+    };
+    fetchUserProfile();
+  }, []);
 
   const handleChange = (e) => {
     setFormData({
@@ -62,13 +83,19 @@ export default function ProjectSubmission({ courseId, isVisible = true }) {
         <h2 className="text-2xl font-bold text-gray-800">Submit Your Project</h2>
       </div>
 
+      {!isFormEnabled && (
+        <div className="mb-4 p-4 bg-yellow-50 border border-yellow-200 rounded text-yellow-700">
+          ⚠️ Please submit your course feedback first to enable project submission.
+        </div>
+      )}
+
       {success && (
         <div className="mb-4 p-4 bg-green-50 border border-green-200 rounded text-green-700">
           ✓ Project submitted successfully! Awaiting instructor review.
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <form onSubmit={handleSubmit} className={`space-y-4 ${!isFormEnabled ? 'opacity-50 pointer-events-none' : ''}`}>
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
             Project Title *
@@ -146,13 +173,20 @@ export default function ProjectSubmission({ courseId, isVisible = true }) {
               />
               GitHub Repository Link
             </label>
+            {userGithub && (
+              <div className="mb-2 p-2 bg-blue-50 border border-blue-200 rounded text-sm text-blue-700">
+                ⚠️ Your registered GitHub username: <strong>{userGithub}</strong>
+                <br />
+                <span className="text-xs">Only repositories from this account will be accepted.</span>
+              </div>
+            )}
             <input
               type="url"
               name="gitHubLink"
               value={formData.gitHubLink}
               onChange={handleChange}
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
-              placeholder="https://github.com/username/repo"
+              placeholder={userGithub ? `https://github.com/${userGithub}/your-repo` : 'https://github.com/username/repo'}
             />
             <p className="text-xs text-gray-500 mt-1">Source code repository</p>
           </div>
@@ -160,10 +194,10 @@ export default function ProjectSubmission({ courseId, isVisible = true }) {
 
         <button
           type="submit"
-          disabled={loading}
+          disabled={loading || !isFormEnabled}
           className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white font-semibold py-2 rounded-lg transition"
         >
-          {loading ? 'Submitting...' : 'Submit Project'}
+          {!isFormEnabled ? '🔒 Submit Feedback First' : loading ? 'Submitting...' : 'Submit Project'}
         </button>
       </form>
 

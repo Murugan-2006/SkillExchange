@@ -1,16 +1,24 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { enrollmentService } from '../services/api';
+import { enrollmentService, creditsService, withdrawalService } from '../services/api';
+import WithdrawCredits from '../components/WithdrawCredits';
+import WithdrawalHistory from '../components/WithdrawalHistory';
 
 export default function StudentDashboard() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [enrollments, setEnrollments] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [credits, setCredits] = useState({ balance: 0 });
+  const [withdrawConfig, setWithdrawConfig] = useState(null);
+  const [showWithdrawModal, setShowWithdrawModal] = useState(false);
+  const [showWithdrawalHistory, setShowWithdrawalHistory] = useState(false);
 
   useEffect(() => {
     fetchEnrollments();
+    fetchCredits();
+    fetchWithdrawConfig();
   }, []);
 
   const fetchEnrollments = async () => {
@@ -22,6 +30,30 @@ export default function StudentDashboard() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const fetchCredits = async () => {
+    try {
+      const response = await creditsService.getCredits();
+      setCredits(response.data.credits);
+    } catch (error) {
+      console.error('Error fetching credits:', error);
+    }
+  };
+
+  const fetchWithdrawConfig = async () => {
+    try {
+      const response = await withdrawalService.getConfig();
+      setWithdrawConfig(response.data);
+    } catch (error) {
+      console.error('Error fetching withdraw config:', error);
+    }
+  };
+
+  const handleWithdrawSuccess = (result) => {
+    // Refresh credits after withdrawal
+    fetchCredits();
+    fetchWithdrawConfig();
   };
 
   return (
@@ -53,9 +85,49 @@ export default function StudentDashboard() {
               {enrollments.filter((e) => e.status === 'completed').length}
             </p>
           </div>
-          <div className="bg-white p-6 rounded-lg shadow">
-            <h3 className="text-gray-600 text-sm font-medium mb-2">Learning Credits</h3>
-            <p className="text-3xl font-bold text-yellow-600">50</p>
+          <div className="bg-gradient-to-br from-yellow-400 to-orange-500 p-6 rounded-lg shadow text-white">
+            <h3 className="text-white text-sm font-medium mb-2 opacity-90">Learning Credits</h3>
+            <p className="text-3xl font-bold">{credits?.balance || 0}</p>
+            {withdrawConfig?.config && (
+              <p className="text-xs mt-1 opacity-80">
+                = ₹{((credits?.balance || 0) * withdrawConfig.config.conversionRate).toLocaleString()}
+              </p>
+            )}
+            {/* Always show withdraw button, but disable if not eligible */}
+            {withdrawConfig?.config && (
+              <>
+                {withdrawConfig?.userStatus?.canWithdraw ? (
+                  <button
+                    onClick={() => setShowWithdrawModal(true)}
+                    className="mt-3 w-full bg-white text-orange-600 py-2 px-4 rounded-lg text-sm font-semibold hover:bg-orange-50 transition"
+                  >
+                    💰 Withdraw as Money
+                  </button>
+                ) : withdrawConfig?.userStatus?.hasPendingWithdrawal ? (
+                  <p className="mt-3 text-xs bg-white/20 rounded px-3 py-2 text-center">
+                    ⏳ Withdrawal in progress...
+                  </p>
+                ) : (
+                  <div className="mt-3">
+                    <button
+                      onClick={() => setShowWithdrawModal(true)}
+                      className="w-full bg-white/30 text-white py-2 px-4 rounded-lg text-sm font-semibold cursor-pointer hover:bg-white/40 transition"
+                    >
+                      💰 Withdraw as Money
+                    </button>
+                    <p className="text-xs mt-1 opacity-80 text-center">
+                      Min {withdrawConfig.config.minCredits} credits required
+                    </p>
+                  </div>
+                )}
+              </>
+            )}
+            <button
+              onClick={() => setShowWithdrawalHistory(true)}
+              className="mt-2 w-full text-white/80 hover:text-white text-xs underline"
+            >
+              View Withdrawal History
+            </button>
           </div>
         </div>
 
@@ -114,6 +186,21 @@ export default function StudentDashboard() {
           )}
         </div>
       </div>
+
+      {/* Withdraw Credits Modal */}
+      {showWithdrawModal && (
+        <WithdrawCredits
+          onClose={() => setShowWithdrawModal(false)}
+          onSuccess={handleWithdrawSuccess}
+        />
+      )}
+
+      {/* Withdrawal History Modal */}
+      {showWithdrawalHistory && (
+        <WithdrawalHistory
+          onClose={() => setShowWithdrawalHistory(false)}
+        />
+      )}
     </div>
   );
 }
