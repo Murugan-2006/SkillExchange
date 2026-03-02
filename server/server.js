@@ -15,30 +15,52 @@ import quizRoutes from './routes/quizzes.js';
 import projectRoutes from './routes/projects.js';
 import certificateRoutes from './routes/certificates.js';
 import creditsRoutes from './routes/credits.js';
-
+import notesRoutes from './routes/notes.js';
+import paymentRoutes from './routes/payments.js';
+import feedbackRoutes from './routes/feedback.js';
+import bonusCreditsRoutes from './routes/bonusCredits.js';
+import withdrawalRoutes from './routes/withdrawals.js';
 dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 5000;
 
 // Multer configuration for file uploads
-const upload = multer({
-  dest: 'uploads/',
-  limits: { fileSize: 500 * 1024 * 1024 }, // 500MB max
-  fileFilter: (req, file, cb) => {
-    if (file.mimetype.startsWith('video/')) {
-      cb(null, true);
-    } else {
-      cb(new Error('Only video files are allowed'));
-    }
-  },
-});
+         // this will execute only when will the route is 'upload/'
+            const upload = multer({
+              dest: 'uploads/',
+              limits: { fileSize: 500 * 1024 * 1024 }, // 500MB max
+              fileFilter: (req, file, cb) => {
+                if (file.mimetype.startsWith('video/')) {
+                  cb(null, true);
+                } else {
+                  cb(new Error('Only video files are allowed'));
+                }
+              },
+            });
 
 // Middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// CORS configuration - allow multiple origins
+const allowedOrigins = [
+  'http://localhost:5173',
+  'http://localhost:3000',
+  process.env.CORS_ORIGIN
+].filter(Boolean);
+
 app.use(cors({
-  origin: process.env.CORS_ORIGIN || 'http://localhost:5173',
+  origin: function(origin, callback) {
+    // Allow requests with no origin (mobile apps, curl, etc.)
+    if (!origin) return callback(null, true);
+    
+    if (allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true,
 }));
 
@@ -58,6 +80,11 @@ app.use('/api/quizzes', quizRoutes);
 app.use('/api/projects', projectRoutes);
 app.use('/api/certificates', certificateRoutes);
 app.use('/api/credits', creditsRoutes);
+app.use('/api/notes', notesRoutes);
+app.use('/api/payments', paymentRoutes);
+app.use('/api/feedback', feedbackRoutes);
+app.use('/api/bonus-credits', bonusCreditsRoutes);
+app.use('/api/withdrawals', withdrawalRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {

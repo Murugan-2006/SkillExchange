@@ -24,6 +24,14 @@ const courseSchema = new mongoose.Schema({
     type: Number,
     default: 10,
   },
+  price: {
+    type: Number,
+    default: 0, // in USD
+  },
+  isPaid: {
+    type: Boolean,
+    default: false,
+  },
   category: {
     type: String,
     default: 'General',
@@ -51,11 +59,11 @@ const courseSchema = new mongoose.Schema({
   },
   isPaid: {
     type: Boolean,
-    default: false,
+    default: true,
   },
   price: {
     type: Number,
-    default: 0,
+    default: 1000, // Default price in INR
   },
   createdAt: {
     type: Date,
@@ -65,9 +73,25 @@ const courseSchema = new mongoose.Schema({
     type: Date,
     default: Date.now,
   },
+  startDate: {
+    type: Date,
+    default: null,
+  },
+  endDate: {
+    type: Date,
+    default: null,
+  },
+  bonusCreditsPaid: {
+    type: Boolean,
+    default: false,
+  },
+  bonusCreditsAmount: {
+    type: Number,
+    default: 0,
+  },
   isActive: {
     type: Boolean,
-    default: true,
+    default: true,  // Courses visible immediately when created
   },
 }, { timestamps: true });
 

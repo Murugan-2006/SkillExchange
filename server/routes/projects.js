@@ -4,16 +4,20 @@ import {
   getStudentProjects,
   getCourseProjects,
   reviewProject,
+  reviewProjectFromEmail,
   getProjectById,
 } from '../controllers/projectController.js';
-import { authMiddleware, adminMiddleware, studentMiddleware } from '../middleware/auth.js';
+import { authMiddleware } from '../middleware/auth.js';
 
 const router = express.Router();
 
-router.post('/:courseId', authMiddleware, studentMiddleware, submitProject);
-router.get('/', authMiddleware, studentMiddleware, getStudentProjects);
-router.get('/:courseId/projects', authMiddleware, adminMiddleware, getCourseProjects);
+// Email-based review (no auth needed, uses token in query)
+router.get('/:projectId/review', reviewProjectFromEmail);
+
+router.post('/:courseId', authMiddleware, submitProject);
+router.get('/', authMiddleware, getStudentProjects);
+router.get('/:courseId/projects', authMiddleware, getCourseProjects);
 router.get('/:projectId', authMiddleware, getProjectById);
-router.put('/:projectId/review', authMiddleware, adminMiddleware, reviewProject);
+router.put('/:projectId/review', authMiddleware, reviewProject);
 
 export default router;

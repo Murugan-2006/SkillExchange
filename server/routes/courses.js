@@ -6,14 +6,14 @@ import {
   updateCourse,
   deleteCourse,
 } from '../controllers/courseController.js';
-import { authMiddleware, adminMiddleware } from '../middleware/auth.js';
+import { authMiddleware } from '../middleware/auth.js';
 
 const router = express.Router();
 
 router.get('/', getAllCourses);
 router.get('/:id', getCourseById);
-router.post('/', authMiddleware, adminMiddleware, createCourse);
-router.put('/:id', authMiddleware, adminMiddleware, updateCourse);
-router.delete('/:id', authMiddleware, adminMiddleware, deleteCourse);
+router.post('/', authMiddleware, createCourse);
+router.put('/:id', authMiddleware, updateCourse);
+router.delete('/:id', authMiddleware, deleteCourse);
 
 export default router;

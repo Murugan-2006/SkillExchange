@@ -1,11 +1,9 @@
 import Discussion from '../models/Discussion.js';
 import Credits from '../models/Credits.js';
-
 export const createDiscussion = async (req, res) => {
   try {
     const { courseId } = req.params;
     const { title, question } = req.body;
-
     if (!title || !question) {
       return res.status(400).json({
         success: false,
@@ -13,7 +11,6 @@ export const createDiscussion = async (req, res) => {
         error: 'VALIDATION_ERROR',
       });
     }
-
     const discussion = new Discussion({
       course: courseId,
       student: req.user.userId,
@@ -23,7 +20,6 @@ export const createDiscussion = async (req, res) => {
 
     await discussion.save();
     await discussion.populate('student', 'name email profilePicture');
-
     res.status(201).json({
       success: true,
       message: 'Discussion created successfully',

@@ -1,5 +1,7 @@
+
 import Video from '../models/Video.js';
 import Course from '../models/Course.js';
+import cloudinary from '../config/cloudinary.js';
 
 export const uploadVideo = async (req, res) => {
   try {
@@ -7,9 +9,50 @@ export const uploadVideo = async (req, res) => {
     const { courseId } = req.params;
     let videoUrl = req.body.url;
 
-    // If file was uploaded, use file path
+    // If file was uploaded, upload to Cloudinary from buffer
     if (req.file) {
-      videoUrl = `${process.env.SERVER_URL || 'http://localhost:5000'}/uploads/${req.file.filename}`;
+      // Basic validation
+      if (!req.file.buffer) {
+        return res.status(400).json({
+          success: false,
+          message: 'Uploaded file is missing or not readable',
+          error: 'INVALID_FILE',
+        });
+      }
+
+      console.log(`Uploading video to Cloudinary: originalname=${req.file.originalname}, mimetype=${req.file.mimetype}, size=${req.file.size}`);
+
+      try {
+        const streamifier = await import('streamifier');
+        const streamUpload = () => {
+          return new Promise((resolve, reject) => {
+            const stream = cloudinary.uploader.upload_stream(
+              {
+                resource_type: 'video',
+                folder: 'skillexchange_videos',
+              },
+              (error, result) => {
+                if (result) {
+                  resolve(result);
+                } else {
+                  reject(error);
+                }
+              }
+            );
+            streamifier.default.createReadStream(req.file.buffer).pipe(stream);
+          });
+        };
+        const uploadResult = await streamUpload();
+        videoUrl = uploadResult.secure_url;
+        console.log('Cloudinary upload successful:', uploadResult.secure_url);
+      } catch (cloudErr) {
+        console.error('Cloudinary upload error:', cloudErr);
+        return res.status(500).json({
+          success: false,
+          message: `Cloudinary upload failed: ${cloudErr.message || JSON.stringify(cloudErr)}`,
+          error: cloudErr,
+        });
+      }
     }
 
     if (!title || !videoUrl) {
@@ -26,6 +69,15 @@ export const uploadVideo = async (req, res) => {
         success: false,
         message: 'Course not found',
         error: 'NOT_FOUND',
+      });
+    }
+
+    // Check if user is the course owner
+    if (course.instructor.toString() !== req.user.userId) {
+      return res.status(403).json({
+        success: false,
+        message: 'You are not authorized to upload videos to this course',
+        error: 'FORBIDDEN',
       });
     }
 
@@ -138,7 +190,7 @@ export const updateVideo = async (req, res) => {
 
 export const deleteVideo = async (req, res) => {
   try {
-    const video = await Video.findByIdAndDelete(req.params.videoId);
+    const video = await Video.findById(req.params.videoId);
 
     if (!video) {
       return res.status(404).json({
@@ -147,6 +199,18 @@ export const deleteVideo = async (req, res) => {
         error: 'NOT_FOUND',
       });
     }
+
+    // Check if user is the course owner
+    const course = await Course.findById(video.course);
+    if (course && course.instructor.toString() !== req.user.userId) {
+      return res.status(403).json({
+        success: false,
+        message: 'You are not authorized to delete this video',
+        error: 'FORBIDDEN',
+      });
+    }
+
+    await Video.findByIdAndDelete(req.params.videoId);
 
     // Remove from course
     await Course.updateOne(

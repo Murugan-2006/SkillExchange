@@ -1,5 +1,29 @@
 import mongoose from 'mongoose';
 
+const transactionSchema = new mongoose.Schema({
+  type: {
+    type: String,
+    enum: ['earned', 'spent', 'withdrawn', 'refunded'],
+    required: true,
+  },
+  amount: {
+    type: Number,
+    required: true,
+  },
+  reason: {
+    type: String,
+    default: '',
+  },
+  relatedId: {
+    type: mongoose.Schema.Types.ObjectId,
+    default: null,
+  },
+  createdAt: {
+    type: Date,
+    default: Date.now,
+  },
+});
+
 const creditsSchema = new mongoose.Schema({
   student: {
     type: mongoose.Schema.Types.ObjectId,
@@ -11,15 +35,7 @@ const creditsSchema = new mongoose.Schema({
     type: Number,
     default: 50,
   },
-  transactions: [{
-    transactionId: mongoose.Schema.Types.ObjectId,
-    type: String,
-    enum: ['earned', 'spent'],
-    amount: Number,
-    reason: String,
-    relatedId: mongoose.Schema.Types.ObjectId,
-    createdAt: { type: Date, default: Date.now },
-  }],
+  transactions: [transactionSchema],
   frozenBalance: {
     type: Number,
     default: 0,

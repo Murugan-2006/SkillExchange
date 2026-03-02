@@ -19,6 +19,7 @@ const enrollmentSchema = new mongoose.Schema({
     videosWatched: { type: Number, default: 0 },
     totalVideos: { type: Number, default: 0 },
     watchPercentage: { type: Number, default: 0 },
+    watchedVideoIds: [{ type: String }],
     lastWatchedAt: Date,
     lastWatchedVideoId: mongoose.Schema.Types.ObjectId,
   },

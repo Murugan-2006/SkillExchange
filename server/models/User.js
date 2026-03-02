@@ -45,6 +45,48 @@ const userSchema = new mongoose.Schema({
     type: Boolean,
     default: true,
   },
+  githubUsername: {     
+    type: String,
+    default: '',
+  },
+  // Bank account details for withdrawals
+  bankDetails: {
+    accountHolderName: {
+      type: String,
+      default: '',
+    },
+    accountNumber: {
+      type: String,
+      default: '',
+    },
+    ifscCode: {
+      type: String,
+      default: '',
+    },
+    bankName: {
+      type: String,
+      default: '',
+    },
+    accountType: {
+      type: String,
+      enum: ['savings', 'current', ''],
+      default: '',
+    },
+    isVerified: {
+      type: Boolean,
+      default: false,
+    },
+  },
+  // UPI details for withdrawals
+  upiId: {
+    type: String,
+    default: '',
+  },
+  // Minimum credits required before withdrawal
+  withdrawalEligible: {
+    type: Boolean,
+    default: false,
+  },
 }, { timestamps: true });
 
 // Hash password before saving

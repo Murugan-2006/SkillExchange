@@ -9,26 +9,16 @@ import {
   updateVideo,
   deleteVideo,
 } from '../controllers/videoController.js';
-import { authMiddleware, adminMiddleware } from '../middleware/auth.js';
+import { authMiddleware } from '../middleware/auth.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const router = express.Router();
 
-// Multer configuration with proper file naming
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, 'uploads/');
-  },
-  filename: (req, file, cb) => {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    cb(null, 'video-' + uniqueSuffix + path.extname(file.originalname));
-  }
-});
-
+// Multer configuration: use memory storage for direct Cloudinary upload
 const upload = multer({
-  storage: storage,
+  storage: multer.memoryStorage(),
   limits: { fileSize: 500 * 1024 * 1024 }, // 500MB max
   fileFilter: (req, file, cb) => {
     if (file.mimetype.startsWith('video/')) {
@@ -39,10 +29,10 @@ const upload = multer({
   },
 });
 
-router.post('/:courseId', authMiddleware, adminMiddleware, upload.single('file'), uploadVideo);
+router.post('/:courseId', authMiddleware, upload.single('file'), uploadVideo);
 router.get('/course/:courseId', getVideosByCourse);
 router.get('/:videoId', getVideoById);
-router.put('/:videoId', authMiddleware, adminMiddleware, updateVideo);
-router.delete('/:videoId', authMiddleware, adminMiddleware, deleteVideo);
+router.put('/:videoId', authMiddleware, updateVideo);
+router.delete('/:videoId', authMiddleware, deleteVideo);
 
 export default router;

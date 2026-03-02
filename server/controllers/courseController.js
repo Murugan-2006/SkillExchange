@@ -3,10 +3,11 @@ import Enrollment from '../models/Enrollment.js';
 
 export const getAllCourses = async (req, res) => {
   try {
-    const { page = 1, limit = 10, category, level } = req.query;
+    const { page = 1, limit = 10, category, level, showAll } = req.query;
     const skip = (page - 1) * limit;
 
-    let query = { isActive: true };
+    // Show all courses - no filtering by isActive or startDate
+    let query = {};
     if (category) query.category = category;
     if (level) query.level = level;
 
@@ -61,7 +62,7 @@ export const getCourseById = async (req, res) => {
 
 export const createCourse = async (req, res) => {
   try {
-    const { title, description, skillsCovered, creditsRequired, level, category } = req.body;
+    const { title, description, skillsCovered, creditsRequired, level, category, startDate } = req.body;
 
     if (!title || !description) {
       return res.status(400).json({
@@ -71,6 +72,9 @@ export const createCourse = async (req, res) => {
       });
     }
 
+    // Course is always visible immediately when created
+    const courseStartDate = startDate ? new Date(startDate) : null;
+
     const course = new Course({
       title,
       description,
@@ -78,6 +82,8 @@ export const createCourse = async (req, res) => {
       creditsRequired: creditsRequired || 0,
       level: level || 'beginner',
       category: category || 'General',
+      startDate: courseStartDate,
+      isActive: true,  // Always visible immediately
       instructor: req.user.userId,
     });
 

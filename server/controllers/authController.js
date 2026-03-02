@@ -4,12 +4,20 @@ import { generateToken } from '../config/jwt.js';
 
 export const register = async (req, res) => {
   try {
-    const { name, email, password, role } = req.body;
+    const { name, email, password, role, githubUsername } = req.body;
 
     if (!name || !email || !password) {
       return res.status(400).json({
         success: false,
         message: 'Name, email, and password are required',
+        error: 'VALIDATION_ERROR',
+      });
+    }
+
+    if (!githubUsername) {
+      return res.status(400).json({
+        success: false,
+        message: 'GitHub username is required',
         error: 'VALIDATION_ERROR',
       });
     }
@@ -24,12 +32,23 @@ export const register = async (req, res) => {
       });
     }
 
+    // Check if GitHub username is already taken
+    const existingGithub = await User.findOne({ githubUsername: githubUsername.toLowerCase() });
+    if (existingGithub) {
+      return res.status(400).json({
+        success: false,
+        message: 'GitHub username already registered with another account',
+        error: 'DUPLICATE_ENTRY',
+      });
+    }
+
     // Create user
     const user = new User({
       name,
       email,
       password,
       role: role || 'student',
+      githubUsername: githubUsername.toLowerCase(),
     });
 
     await user.save();
@@ -53,6 +72,7 @@ export const register = async (req, res) => {
         name: user.name,
         email: user.email,
         role: user.role,
+        githubUsername: user.githubUsername,
       },
     });
   } catch (error) {
@@ -108,6 +128,7 @@ export const login = async (req, res) => {
         email: user.email,
         role: user.role,
         profilePicture: user.profilePicture,
+        githubUsername: user.githubUsername,
       },
     });
   } catch (error) {

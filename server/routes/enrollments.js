@@ -4,14 +4,16 @@ import {
   getEnrollments,
   getEnrollmentById,
   updateProgress,
+  updateProgressByCourse,
 } from '../controllers/enrollmentController.js';
-import { authMiddleware, studentMiddleware } from '../middleware/auth.js';
+import { authMiddleware } from '../middleware/auth.js';
 
 const router = express.Router();
 
-router.post('/', authMiddleware, studentMiddleware, enrollCourse);
-router.get('/', authMiddleware, studentMiddleware, getEnrollments);
-router.get('/:id', authMiddleware, studentMiddleware, getEnrollmentById);
-router.put('/:id/progress', authMiddleware, studentMiddleware, updateProgress);
+router.post('/', authMiddleware, enrollCourse);
+router.get('/', authMiddleware, getEnrollments);
+router.get('/:id', authMiddleware, getEnrollmentById);
+router.put('/:id/progress', authMiddleware, updateProgress);
+router.put('/course/:courseId/progress', authMiddleware, updateProgressByCourse);
 
 export default router;
