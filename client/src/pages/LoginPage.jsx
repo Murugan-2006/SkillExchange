@@ -45,7 +45,7 @@ export default function LoginPage() {
           Skill Exchange
         </h1>
         <h2 className="text-2xl font-semibold text-center text-gray-700 mb-6">
-          Welcome Back
+          Login
         </h2>
 
         {error && (

@@ -1,10 +1,11 @@
 import React from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
 export default function Navbar() {
   const { isAuthenticated, user, logout } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [open, setOpen] = React.useState(false);
   const [credits, setCredits] = React.useState(null);
 
@@ -120,12 +121,15 @@ export default function Navbar() {
             </>
           ) : (
             <>
-              <Link to="/login" className="text-gray-600 hover:text-gray-900">
+              <Link
+                to="/login"
+                className={location.pathname === '/login' ? 'bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition' : 'text-gray-600 hover:text-gray-900'}
+              >
                 Login
               </Link>
               <Link
                 to="/register"
-                className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition"
+                className={location.pathname === '/register' ? 'bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition' : 'text-gray-600 hover:text-gray-900'}
               >
                 Register
               </Link>

@@ -22,10 +22,19 @@ export default function PaymentStatusPage() {
     if (paymentId) {
       checkPaymentStatus();
     } else {
+      // Check URL params for additional error info
+      const statusParam = searchParams.get('status');
+      const messageParam = searchParams.get('message');
+      
       setStatus('error');
-      setError('No payment ID found');
+      if (statusParam === 'error') {
+        setError(messageParam || 'Payment verification failed. Please contact support.');
+      } else {
+        setError('Payment ID not found. If you just completed a payment, please wait a moment and refresh the page.');
+        console.warn('⚠️ No paymentId in URL. Current URL:', window.location.href);
+      }
     }
-  }, [paymentId, isAuthenticated]);
+  }, [paymentId, isAuthenticated, searchParams]);
 
   const checkPaymentStatus = async () => {
     try {

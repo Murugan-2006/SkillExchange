@@ -386,7 +386,7 @@ export const initiatePhonePePayment = async (req, res) => {
         type: 'PG_CHECKOUT',
         message: `Payment for course: ${course.title}`,
         merchantUrls: {
-          redirectUrl: `${phonepeConfig.redirectUrl}/${merchantTransactionId}`
+          redirectUrl: `${phonepeConfig.redirectUrl}/${merchantTransactionId}?paymentId=${payment._id}`
         }
       }
     };
@@ -405,18 +405,30 @@ export const initiatePhonePePayment = async (req, res) => {
       }
     );
 
-    console.log('PhonePe Response:', response.data);
+    console.log('📤 PhonePe Response:', JSON.stringify(response.data, null, 2));
 
     if (response.data.orderId) {
       // Update payment with PhonePe order ID
       payment.phonepeTransactionId = response.data.orderId;
       await payment.save();
 
+      // PhonePe may return redirectUrl in response or we need to construct it
+      let redirectUrl = response.data.redirectUrl;
+      
+      if (!redirectUrl && response.data.orderId) {
+        // Fallback: Construct payment URL if PhonePe doesn't return redirectUrl
+        // PhonePe Standard Checkout API uses this format
+        redirectUrl = `https://api-preprod.phonepe.com/apis/pg-sandbox/checkout/v2/pay/${response.data.orderId}`;
+        console.log('⚠️ No redirectUrl in PhonePe response. Using constructed URL:', redirectUrl);
+      }
+
+      console.log(`✅ Payment initiated - OrderId: ${response.data.orderId}, Redirect: ${redirectUrl}`);
+
       res.json({
         success: true,
         message: 'Payment initiated successfully',
         paymentId: payment._id,
-        redirectUrl: response.data.redirectUrl,
+        redirectUrl: redirectUrl,
         merchantTransactionId: merchantTransactionId,
         orderId: response.data.orderId,
       });
@@ -424,6 +436,8 @@ export const initiatePhonePePayment = async (req, res) => {
       payment.status = 'failed';
       payment.failureReason = response.data.message || 'Payment initiation failed';
       await payment.save();
+
+      console.error('❌ PhonePe failed to create order:', response.data);
 
       res.status(400).json({
         success: false,
@@ -446,22 +460,53 @@ export const initiatePhonePePayment = async (req, res) => {
 export const phonePeStatusRedirect = async (req, res) => {
   try {
     const { transactionId } = req.params;
+    const { paymentId } = req.query;
+    console.log('🔍 PhonePe Redirect - Received transactionId:', transactionId);
 
-    // Find payment by merchant transaction ID
-    const payment = await Payment.findOne({
-      phonepeMerchantTransactionId: transactionId,
-    });
+    // Prefer the saved payment id when available, then fall back to the merchant transaction id.
+    let payment = null;
+
+    if (paymentId) {
+      payment = await Payment.findById(paymentId);
+    }
+
+    if (!payment && transactionId) {
+      payment = await Payment.findOne({
+        phonepeMerchantTransactionId: transactionId,
+      });
+    }
+
+    if (!payment && transactionId) {
+      payment = await Payment.findOne({
+        phonepeTransactionId: transactionId,
+      });
+    }
 
     if (!payment) {
-      console.error('Payment not found for transactionId:', transactionId);
-      return res.redirect(`${phonepeConfig.frontendUrl}/payment/status?status=error&message=Payment not found`);
+      console.error('❌ Payment not found for transactionId:', transactionId);
+      
+      // Log available payments for debugging
+      const allPayments = await Payment.find({ paymentMethod: 'phonepe' })
+        .select('phonepeMerchantTransactionId status')
+        .limit(5);
+      console.log('📝 Last 5 PhonePe payments:', allPayments);
+      
+      const errorMsg = encodeURIComponent('Payment record not found. Please contact support.');
+      return res.redirect(`${phonepeConfig.frontendUrl}/payment/status?status=error&message=${errorMsg}`);
+    }
+
+    console.log('✅ Payment found:', payment._id, 'Status:', payment.status);
+
+    if (payment.status === 'completed') {
+      console.log(`🎯 Payment already completed. Redirecting to: ${phonepeConfig.frontendUrl}/payment/status?paymentId=${payment._id}&status=success`);
+      return res.redirect(`${phonepeConfig.frontendUrl}/payment/status?paymentId=${payment._id}&status=success`);
     }
 
     // Get access token and check status with PhonePe
     const accessToken = await getPhonePeAccessToken();
 
     const response = await axios.get(
-      `${phonepeConfig.statusUrl}/${transactionId}/status`,
+      `${phonepeConfig.statusUrl}/${payment.phonepeMerchantTransactionId}/status`,
       {
         headers: {
           'Content-Type': 'application/json',
@@ -470,7 +515,7 @@ export const phonePeStatusRedirect = async (req, res) => {
       }
     );
 
-    console.log('PhonePe Status Response:', response.data);
+    console.log('📊 PhonePe Status Response:', response.data);
 
     const state = response.data.state;
     
@@ -480,6 +525,7 @@ export const phonePeStatusRedirect = async (req, res) => {
       payment.paidAt = new Date();
       payment.transactionId = `PHONEPE-${response.data.orderId || Date.now()}`;
       await payment.save();
+      console.log('💰 Payment marked as completed');
 
       // Create enrollment
       const course = await Course.findById(payment.course);
@@ -505,21 +551,26 @@ export const phonePeStatusRedirect = async (req, res) => {
           course.enrollmentCount = (course.enrollmentCount || 0) + 1;
           await course.save();
         }
+        console.log('✏️ Enrollment created for student:', payment.student);
       }
 
+      console.log(`🎯 Redirecting to: ${phonepeConfig.frontendUrl}/payment/status?paymentId=${payment._id}&status=success`);
       return res.redirect(`${phonepeConfig.frontendUrl}/payment/status?paymentId=${payment._id}&status=success`);
     } else if (state === 'PENDING') {
+      console.log('⏳ Payment still pending');
       return res.redirect(`${phonepeConfig.frontendUrl}/payment/status?paymentId=${payment._id}&status=pending`);
     } else {
       payment.status = 'failed';
       payment.failureReason = response.data.message || 'Payment failed';
       await payment.save();
+      console.log('❌ Payment marked as failed:', payment.failureReason);
 
       return res.redirect(`${phonepeConfig.frontendUrl}/payment/status?paymentId=${payment._id}&status=failed`);
     }
   } catch (error) {
-    console.error('PhonePe Status Error:', error.response?.data || error.message);
-    return res.redirect(`${phonepeConfig.frontendUrl}/payment/status?status=error`);
+    console.error('💥 PhonePe Status Error:', error.response?.data || error.message);
+    const errorMsg = encodeURIComponent('Payment verification failed. Please try again.');
+    return res.redirect(`${phonepeConfig.frontendUrl}/payment/status?status=error&message=${errorMsg}`);
   }
 };
 

@@ -93,17 +93,22 @@ export default function PaymentModal({ course, isOpen, onClose, onSuccess }) {
       // Call backend PhonePe initiation endpoint
       const response = await paymentService.initiatePhonePePayment(course._id);
       
+      console.log('📱 PhonePe Response:', response.data);
+      
       if (response.data.success) {
         if (response.data.redirectUrl) {
           // Redirect to PhonePe payment page
+          console.log('🔄 Redirecting to:', response.data.redirectUrl);
           window.location.href = response.data.redirectUrl;
         } else {
-          setSuccess('✅ Payment initiated successfully!');
+          console.error('❌ No redirectUrl in response:', response.data);
+          setError('Payment gateway connection failed. Please try again.');
         }
       } else {
         setError(response.data.message || 'Payment initiation failed');
       }
     } catch (error) {
+      console.error('💥 PhonePe Error:', error);
       setError(error.response?.data?.message || 'PhonePe payment failed');
     } finally {
       setLoading(false);

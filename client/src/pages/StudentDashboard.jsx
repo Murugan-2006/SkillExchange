@@ -14,6 +14,7 @@ export default function StudentDashboard() {
   const [withdrawConfig, setWithdrawConfig] = useState(null);
   const [showWithdrawModal, setShowWithdrawModal] = useState(false);
   const [showWithdrawalHistory, setShowWithdrawalHistory] = useState(false);
+  const hiddenCourseKeywords = ['simple', 'sample', 'test', 'demo'];
 
   useEffect(() => {
     fetchEnrollments();
@@ -56,6 +57,11 @@ export default function StudentDashboard() {
     fetchWithdrawConfig();
   };
 
+  const visibleEnrollments = enrollments.filter((enrollment) => {
+    const courseTitle = enrollment.course?.title?.toLowerCase() || '';
+    return courseTitle && !hiddenCourseKeywords.some((keyword) => courseTitle.includes(keyword));
+  });
+
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-7xl mx-auto px-4 py-8">
@@ -71,18 +77,18 @@ export default function StudentDashboard() {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
           <div className="bg-white p-6 rounded-lg shadow">
             <h3 className="text-gray-600 text-sm font-medium mb-2">Courses Enrolled</h3>
-            <p className="text-3xl font-bold text-blue-600">{enrollments.length}</p>
+            <p className="text-3xl font-bold text-blue-600">{visibleEnrollments.length}</p>
           </div>
           <div className="bg-white p-6 rounded-lg shadow">
             <h3 className="text-gray-600 text-sm font-medium mb-2">In Progress</h3>
             <p className="text-3xl font-bold text-green-600">
-              {enrollments.filter((e) => e.status === 'active').length}
+              {visibleEnrollments.filter((e) => e.status === 'active').length}
             </p>
           </div>
           <div className="bg-white p-6 rounded-lg shadow">
             <h3 className="text-gray-600 text-sm font-medium mb-2">Completed</h3>
             <p className="text-3xl font-bold text-purple-600">
-              {enrollments.filter((e) => e.status === 'completed').length}
+              {visibleEnrollments.filter((e) => e.status === 'completed').length}
             </p>
           </div>
           <div className="bg-gradient-to-br from-yellow-400 to-orange-500 p-6 rounded-lg shadow text-white">
@@ -137,7 +143,7 @@ export default function StudentDashboard() {
 
           {loading ? (
             <p className="text-gray-600">Loading...</p>
-          ) : enrollments.length === 0 ? (
+          ) : visibleEnrollments.length === 0 ? (
             <div className="text-center py-12">
               <p className="text-gray-600 mb-4">You haven't enrolled in any courses yet</p>
               <a
@@ -149,7 +155,7 @@ export default function StudentDashboard() {
             </div>
           ) : (
             <div className="space-y-4">
-              {enrollments.map((enrollment) => (
+              {visibleEnrollments.map((enrollment) => (
                 <div 
                   key={enrollment._id} 
                   className="border border-gray-200 rounded-lg p-4 hover:shadow-lg transition cursor-pointer"
